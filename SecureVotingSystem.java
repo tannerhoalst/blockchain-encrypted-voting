@@ -2,6 +2,8 @@ package securevoting;
 
 import java.math.BigInteger;
 import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 
 public class SecureVotingSystem {
@@ -59,9 +61,9 @@ public class SecureVotingSystem {
         return proofValid;
     }
     
-    public static BigInteger tallyVotes(Map<BigInteger, EncryptedVote> allVotes) {
+    public static BigInteger tallyVotes(List<EncryptedVote> allVotes) {
         BigInteger tally = BigInteger.ONE;
-        for (EncryptedVote vote : allVotes.values()) {
+        for (EncryptedVote vote : allVotes) {
             tally = tally.multiply(vote.getEncryptedVote()).mod(electionKeys.getN().multiply(electionKeys.getN()));
         }
         return CryptographicUtils.decrypt(tally, electionKeys);
@@ -112,32 +114,27 @@ public class SecureVotingSystem {
             int totalVotes = 0;
             int validVotes = 0;
     
+            List<EncryptedVote> allValidVotes = new LinkedList<>();
             for (Block block : blockchain.getChain()) {
                 for (EncryptedVote vote : block.getVotes()) {
                     totalVotes++;
                     BigInteger voterPublicKey = getVoterPublicKeyForVote(vote);
                     if (verifyVote(voterPublicKey, vote)) {
                         validVotes++;
+                        allValidVotes.add(vote);
                     } else {
                         System.out.println("Invalid vote found in block with hash: " + block.getHash());
                         System.out.println("Invalid vote's public key: " + voterPublicKey);
                     }
                 }
             }
-    
             System.out.println("Verification complete. " + validVotes + " out of " + totalVotes + " votes are valid.");
-    
     
             // Verify the blockchain
             System.out.println("Is blockchain valid? " + blockchain.isChainValid());
     
             // Tally votes
-            Map<BigInteger, EncryptedVote> allVotes = new HashMap<>();
-            allVotes.put(voter1.getPublicKey(), vote1);
-            allVotes.put(voter2.getPublicKey(), vote2);
-            allVotes.put(voter3.getPublicKey(), vote3);
-    
-            BigInteger result = tallyVotes(allVotes);
+            BigInteger result = tallyVotes(allValidVotes);
             System.out.println("\nTotal 'Yes' votes: " + result);
     
         } catch (IllegalArgumentException e) {
